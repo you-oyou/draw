@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mnanak na qalang - 互動繪本電子書</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts for Indigenous/Earthy feel -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;900&family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Noto Serif TC', serif;
+      background-color: #1a1614;
+      color: #f3efe6;
+      overflow-x: hidden;
+    }
+
+    /* Indigenous pattern tribal border style */
+    .tribal-border {
+      border: 4px solid #b45309;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+      background-image: radial-gradient(#29201a 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+
+    .tribal-pattern-bg {
+      background: linear-gradient(135deg, #2b1810 0%, #170d08 100%);
+      position: relative;
+    }
+    .tribal-pattern-bg::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      opacity: 0.08;
+      background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0L40 20L20 40L0 20z' fill='%2%23d97706' fill-rule='evenodd'/%3E%3C/svg%3E");
+    }
+
+    /* Page flip transition effect */
+    .book-container {
+      perspective: 1200px;
+    }
+    
+    .page-frame {
+      transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
+      transform-origin: center left;
+    }
+
+    .page-flip-next {
+      animation: flipNext 0.5s ease-in-out forwards;
+    }
+
+    .page-flip-prev {
+      animation: flipPrev 0.5s ease-in-out forwards;
+    }
+
+    @keyframes flipNext {
+      0% { transform: rotateY(0deg) scale(1); opacity: 1; }
+      50% { transform: rotateY(-15deg) scale(0.98); opacity: 0.8; }
+      100% { transform: rotateY(0deg) scale(1); opacity: 1; }
+    }
+
+    @keyframes flipPrev {
+      0% { transform: rotateY(0deg) scale(1); opacity: 1; }
+      50% { transform: rotateY(15deg) scale(0.98); opacity: 0.8; }
+      100% { transform: rotateY(0deg) scale(1); opacity: 1; }
+    }
+
+    /* Custom Scrollbar for Thumbnails */
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 8px;
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #261e19;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #b45309;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #d97706;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between select-none">
+
+  <!-- Header Navigation -->
+  <header class="bg-stone-900/90 border-b border-amber-900/40 px-4 py-3 flex items-center justify-between z-30 sticky top-0 backdrop-blur-md">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-full bg-amber-800/80 border border-amber-500 flex items-center justify-center text-amber-200 font-bold font-serif text-xl shadow-lg">
+        部落
+      </div>
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold tracking-wider text-amber-100 font-['Cinzel']">mnanak na qalang</h1>
+        <p class="text-xs text-amber-400/80 font-sans">奇妙的部落 ｜ 泰雅族故事繪本電子書</p>
+      </div>
+    </div>
+
+    <!-- Right Controls: Audio & Directory Selector -->
+    <div class="flex items-center space-x-2 md:space-x-4">
+      
+      <!-- Upload local folder / files button -->
+      <label class="cursor-pointer bg-amber-900/60 hover:bg-amber-800 text-amber-200 border border-amber-700/60 px-3 py-1.5 rounded-lg text-xs md:text-sm flex items-center space-x-2 transition shadow" title="載入您的 assets 資料夾圖片與音檔">
+        <i data-lucide="folder-open" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">載入 assets 資料夾</span>
+        <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden" onchange="handleFolderSelect(event)">
+      </label>
+
+      <!-- Background Music Toggle -->
+      <div class="flex items-center bg-stone-800/80 rounded-lg px-2.5 py-1 border border-amber-900/30">
+        <button id="bgmBtn" onclick="toggleBGM()" class="text-amber-400 hover:text-amber-200 p-1 focus:outline-none" title="背景音樂">
+          <i data-lucide="music" id="bgmIcon" class="w-5 h-5"></i>
+        </button>
+        <input type="range" id="bgmVolume" min="0" max="1" step="0.05" value="0.3" oninput="changeBGMVolume(this.value)" class="w-16 accent-amber-600 ml-1.5 cursor-pointer">
+      </div>
+
+      <!-- Fullscreen Toggle -->
+      <button onclick="toggleFullscreen()" class="p-2 bg-stone-800 hover:bg-stone-700 rounded-lg border border-amber-900/30 text-amber-300 transition" title="全螢幕模式">
+        <i data-lucide="maximize" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Reader Stage -->
+  <main class="flex-1 flex flex-col items-center justify-center p-3 sm:p-6 tribal-pattern-bg relative overflow-hidden">
+    
+    <!-- Status Notification Bar -->
+    <div id="statusAlert" class="hidden absolute top-4 z-40 bg-amber-950/90 border border-amber-600 text-amber-200 text-xs md:text-sm px-4 py-2 rounded-full shadow-2xl flex items-center space-x-2 backdrop-blur-md">
+      <i data-lucide="info" class="w-4 h-4 text-amber-400"></i>
+      <span id="statusMessage">已載入資源</span>
+    </div>
+
+    <!-- Main Flip Book Viewer -->
+    <div class="book-container w-full max-w-5xl flex flex-col items-center my-auto">
+      
+      <!-- Frame with page display -->
+      <div id="bookFrame" class="page-frame relative w-full aspect-[4/3] max-h-[72vh] rounded-xl overflow-hidden tribal-border shadow-2xl bg-black flex items-center justify-center">
+        
+        <!-- Main Graphic Image -->
+        <img id="pageImage" src="" alt="繪本頁面" class="w-full h-full object-contain bg-stone-950 transition-opacity duration-300">
+        
+        <!-- Dynamic Canvas Fallback (used when user local graphics are not loaded yet) -->
+        <canvas id="fallbackCanvas" class="hidden w-full h-full object-contain"></canvas>
+
+        <!-- Spirit Overlay Effect Icon (spirit.png feature) -->
+        <div id="spiritOverlay" class="absolute bottom-4 right-4 pointer-events-none opacity-40 hover:opacity-100 transition">
+          <div class="w-12 h-12 md:w-16 md:h-16 rounded-full bg-amber-500/10 border border-amber-400/30 flex items-center justify-center backdrop-blur-sm animate-pulse">
+            <span class="text-xl md:text-2xl">✨</span>
+          </div>
+        </div>
+
+        <!-- Page Number Ribbon -->
+        <div class="absolute top-4 left-4 bg-stone-900/95 text-amber-300 border border-amber-600/80 px-3.5 py-1.5 rounded-full text-xs md:text-sm font-semibold tracking-wider shadow-lg flex items-center space-x-1">
+          <span class="text-amber-500 font-sans">頁數：</span>
+          <span id="currentPageNum" class="font-mono font-bold text-amber-200">0</span>
+          <span class="text-amber-600">/ 19</span>
+        </div>
+
+        <!-- Audio Speech Status Indicator -->
+        <div id="speechIndicator" class="hidden absolute top-4 right-4 bg-amber-700/80 text-white px-3 py-1 rounded-full text-xs flex items-center space-x-1.5 animate-pulse">
+          <i data-lucide="volume-2" class="w-3.5 h-3.5"></i>
+          <span>泰雅原音朗讀中...</span>
+        </div>
+
+        <!-- Touch/Click Left Right Quick Tap zones -->
+        <div onclick="prevPage()" class="absolute left-0 top-0 bottom-0 w-1/6 cursor-pointer hover:bg-gradient-to-r hover:from-black/40 hover:to-transparent flex items-center justify-start pl-3 opacity-0 hover:opacity-100 transition" title="上一頁">
+          <div class="p-2 rounded-full bg-stone-900/80 border border-amber-500/50 text-amber-300 shadow">
+            <i data-lucide="chevron-left" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <div onclick="nextPage()" class="absolute right-0 top-0 bottom-0 w-1/6 cursor-pointer hover:bg-gradient-to-l hover:from-black/40 hover:to-transparent flex items-center justify-end pr-3 opacity-0 hover:opacity-100 transition" title="下一頁">
+          <div class="p-2 rounded-full bg-stone-900/80 border border-amber-500/50 text-amber-300 shadow">
+            <i data-lucide="chevron-right" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Story Text Display Box -->
+      <div class="w-full mt-3 bg-stone-900/80 border border-amber-900/50 rounded-xl p-3.5 md:p-4 text-center text-amber-100 shadow-lg backdrop-blur-md">
+        <p id="pageText" class="text-sm md:text-base leading-relaxed tracking-wide font-medium">
+          載入中...
+        </p>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Bottom Control Toolbar & Thumbnails -->
+  <footer class="bg-stone-950 border-t border-amber-900/50 p-3 space-y-3">
+    
+    <!-- Control Buttons Bar -->
+    <div class="max-w-4xl mx-auto flex items-center justify-between px-2">
+      
+      <!-- Home / Cover Button -->
+      <button onclick="goToPage(0)" class="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-stone-800 hover:bg-amber-900/60 border border-amber-800/40 text-amber-200 text-xs md:text-sm transition" title="返回封面">
+        <i data-lucide="book-open" class="w-4 h-4 text-amber-400"></i>
+        <span>封面</span>
+      </button>
+
+      <!-- Center Audio & Navigation Controls -->
+      <div class="flex items-center space-x-3 md:space-x-5">
+        
+        <!-- Previous Page (left) -->
+        <button onclick="prevPage()" class="p-2.5 rounded-full bg-amber-900/80 hover:bg-amber-700 text-amber-100 border border-amber-600 shadow-lg active:scale-95 transition" title="上一頁 (←)">
+          <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </button>
+
+        <!-- Read / Audio Narration Button (read) -->
+        <button id="readBtn" onclick="toggleReadAloud()" class="px-5 py-2.5 rounded-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold text-sm shadow-xl flex items-center space-x-2 border border-amber-400/50 active:scale-95 transition">
+          <i data-lucide="volume-2" id="readIcon" class="w-4 h-4"></i>
+          <span id="readText">朗讀故事</span>
+        </button>
+
+        <!-- Next Page (right) -->
+        <button onclick="nextPage()" class="p-2.5 rounded-full bg-amber-900/80 hover:bg-amber-700 text-amber-100 border border-amber-600 shadow-lg active:scale-95 transition" title="下一頁 (→)">
+          <i data-lucide="arrow-right" class="w-5 h-5"></i>
+        </button>
+
+      </div>
+
+      <!-- Auto Play Mode Toggle -->
+      <button id="autoPlayBtn" onclick="toggleAutoPlay()" class="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-stone-800 hover:bg-amber-900/60 border border-amber-800/40 text-amber-200 text-xs md:text-sm transition">
+        <i data-lucide="play" id="autoPlayIcon" class="w-4 h-4 text-amber-400"></i>
+        <span id="autoPlayText">自動播放</span>
+      </button>
+
+    </div>
+
+    <!-- Thumbnail Navigation Strip (0 ~ 19) -->
+    <div class="max-w-6xl mx-auto overflow-x-auto custom-scrollbar pt-1 pb-2">
+      <div id="thumbnailContainer" class="flex items-center space-x-2 px-2">
+        <!-- Thumbnails generated dynamically by JS -->
+      </div>
+    </div>
+
+  </footer>
+
+  <!-- Audio elements -->
+  <audio id="bgmAudio" loop></audio>
+  <audio id="speechAudio"></audio>
+
+  <script>
+    // --- Story Book Data (Pages 0 - 19) in Atayal Native Language ---
+    const totalPages = 20; // 0 to 19
+    let currentPage = 0;
+    
+    // Original Atayal Native Text & Translation (No page numbers included in narration)
+    const pageTexts = [
+      { text: "Mnanak na qalang - Qalang Tayal.", sub: "奇妙的部落 —— 泰雅傳統故事繪本" },
+      { text: "Sraral balay, maki qutux mnanak na qalang ska rgyax.", sub: "很久很久以前，在深山裡有一個奇妙的部落。" },
+      { text: "Kmayal baki, 「Kahat su squ Gaga na Utux bnkis.」", sub: "部落長老常說：「我們要牢記祖靈的神聖教誨。」" },
+      { text: "Mhway su, Mluw huyu qu mlahang rgyax na mlahi.", sub: "勇敢的青年獵人帶上獵犬，踏入廣袤的森林尋找守護。" },
+      { text: "Skwara kwara Tayal mqwas qwas na Utux bnkis.", sub: "夜晚營火旁，族人們一同吟唱著祖靈之歌。" },
+      { text: "Mita Gaga squ qalang, mwah lga kblaq maki binah.", sub: "謹守部落祖訊與文化，讓大地萬物與我們和諧相處。" },
+      { text: "Kniang na kneril Tayal tminun pala qu blaq balay.", sub: "部落婦女用心編織，將歷史與祝福圖騰編入織布中。" },
+      { text: "Maki qutux ryax, mtawiy spzyang blaq mtalah Hqwalut.", sub: "有一天，天空中綻放出一道極其美麗耀眼的彩虹橋。" },
+      { text: "Lokah su! Mwah qu mlahi, mlahang kwara sehay Tayal.", sub: "加油！獵人們站了出來，保護全村族人與豐收的土地。" },
+      { text: "Mzyugi squ mngangi, phgup Sisil tqwas balay.", sub: "神聖的飛鳥 Sisil 在前方鳴叫，指引著正確的方向。" },
+      { text: "Pzyux balay squliq na qalang musa phgup msqutux inlungan.", sub: "全村老少聚集在一起，齊心向祖靈祈求平安。" },
+      { text: "Mhuway Utux bnkis, psyax kwara spzyang rgyax.", sub: "感恩祖靈的賜予，光明照亮了整座神聖的山林。" },
+      { text: "Mabi squ ska abaw rgyax, sbiq inlungan sinhiyan.", sub: "獵人在古木下沉靜沉睡，夢見了部落繁榮昌盛的未來。" },
+      { text: "Mluw qwas na bnkis, mwah lga mngyan kwara.", sub: "隨著祖靈歡慶的歌聲，大地與山谷再度響徹笑聲。" },
+      { text: "Kwara tsinaw rgyax mwah mssruw gluw Tayal.", sub: "森林裡的野生動物們也紛紛聚集，與族人和諧共享。" },
+      { text: "Mita ngasal qalang, lokah balay kinbaklay.", sub: "看那堅固的家園與柱石，守護著一世代又一世代。" },
+      { text: "Khu na kahat rgyax, blaq balay rhzyal quaw.", sub: "高聳參天的古木，伴隨著泰雅子孫堅毅地成長。" },
+      { text: "Maniq nqu niqun Tayal, mspung inlungan mhuway.", sub: "圍坐分享美味盛宴，懷著感恩的心將幸福散播給眾人。" },
+      { text: "Sbiq smbalay lalao squ laqi, kblaq balay zyuwaw.", sub: "將獵刀與編織包傳給孩子，將部落的精神與信仰代代相傳。" },
+      { text: "Hqwalut Tayal, mnanak na qalang, rasun ta kwara!", sub: "彩虹橋橫跨天際，奇妙部落的榮耀與美麗永續傳承！" }
+    ];
+
+    // Asset Store: holds URLs from local file picker or default fallback paths
+    const assets = {
+      graphics: {}, // key: page number 0..19, value: Blob URL or path string
+      speech: {},   // key: page number 0..19, value: Blob URL
+      music: null,  // BGM Blob URL
+    };
+
+    // State
+    let isBGMPlaying = false;
+    let isSpeechPlaying = false;
+    let isAutoPlay = false;
+    let autoPlayTimer = null;
+    let synth = window.speechSynthesis;
+
+    // Web Audio Fallback Synth for BGM
+    let audioCtx = null;
+    let bgmOscillator = null;
+
+    // Initialize UI on window load
+    window.onload = function() {
+      lucide.createIcons();
+      setupDefaultPaths();
+      renderThumbnails();
+      updatePage();
+
+      // Keyboard arrow listener
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') nextPage();
+        if (e.key === 'ArrowLeft') prevPage();
+        if (e.key === ' ') { e.preventDefault(); toggleReadAloud(); }
+      });
+    };
+
+    // Initialize default asset paths (matching structure: assets/graphics/{0..19}.jpg)
+    function setupDefaultPaths() {
+      for (let i = 0; i < totalPages; i++) {
+        assets.graphics[i] = `assets/graphics/${i}.jpg`;
+        assets.speech[i] = `assets/speech/${i}.mp3`;
+      }
+      assets.music = `assets/music/bgm.mp3`;
+    }
+
+    // Handle User Local Folder Upload
+    function handleFolderSelect(event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+
+      let loadedCount = 0;
+      for (let file of files) {
+        const path = file.webkitRelativePath || file.name;
+
+        // Match graphic images (e.g. assets/graphics/0.jpg or 0.jpg)
+        const gMatch = path.match(/(?:graphics\/)?(\d+)\.(jpg|png|jpeg|webp)$/i);
+        if (gMatch) {
+          const pageIdx = parseInt(gMatch[1], 10);
+          if (pageIdx >= 0 && pageIdx < totalPages) {
+            assets.graphics[pageIdx] = URL.createObjectURL(file);
+            loadedCount++;
+          }
+        }
+
+        // Match speech audio files (e.g. assets/speech/0.mp3 or 0.mp3)
+        const sMatch = path.match(/(?:speech\/)?(\d+)\.(mp3|wav|ogg|m4a)$/i);
+        if (sMatch) {
+          const pageIdx = parseInt(sMatch[1], 10);
+          if (pageIdx >= 0 && pageIdx < totalPages) {
+            assets.speech[pageIdx] = URL.createObjectURL(file);
+          }
+        }
+
+        // Match background music (e.g. assets/music/...)
+        if (path.includes('music/') || file.type.startsWith('audio/')) {
+          if (!path.includes('speech/')) {
+            assets.music = URL.createObjectURL(file);
+            const bgm = document.getElementById('bgmAudio');
+            bgm.src = assets.music;
+          }
+        }
+      }
+
+      showStatusAlert(`成功載入 ${loadedCount} 個圖像及聲音資源！`);
+      renderThumbnails();
+      updatePage();
+    }
+
+    // Render Thumbnail Strip
+    function renderThumbnails() {
+      const container = document.getElementById('thumbnailContainer');
+      container.innerHTML = '';
+
+      for (let i = 0; i < totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.onclick = () => goToPage(i);
+        btn.className = `flex-shrink-0 relative w-16 h-12 md:w-20 md:h-14 rounded-lg overflow-hidden border-2 transition transform hover:scale-105 ${
+          i === currentPage ? 'border-amber-400 ring-2 ring-amber-500/50 scale-105' : 'border-amber-900/60 opacity-60 hover:opacity-100'
+        }`;
+
+        const img = document.createElement('img');
+        img.src = assets.graphics[i];
+        img.className = 'w-full h-full object-cover bg-stone-900';
+        img.onerror = () => {
+          // If image fails, draw canvas fallback placeholder thumbnail
+          img.style.display = 'none';
+          btn.appendChild(createPlaceholderThumb(i));
+        };
+
+        const label = document.createElement('span');
+        label.className = 'absolute bottom-0 right-0 bg-stone-950/80 text-amber-200 text-[10px] px-1 font-mono';
+        label.innerText = i === 0 ? '封面' : i;
+
+        btn.appendChild(img);
+        btn.appendChild(label);
+        container.appendChild(btn);
+      }
+    }
+
+    // Create Canvas Placeholder Thumbnail
+    function createPlaceholderThumb(index) {
+      const cvs = document.createElement('canvas');
+      cvs.width = 80;
+      cvs.height = 60;
+      const ctx = cvs.getContext('2d');
+      
+      // Warm aboriginal gradient
+      const grad = ctx.createLinearGradient(0, 0, 80, 60);
+      grad.addColorStop(0, index === 0 ? '#b45309' : '#3f2212');
+      grad.addColorStop(1, '#1c1008');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 80, 60);
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = 'bold 12px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(index === 0 ? 'mnanak' : `P. ${index}`, 40, 34);
+      return cvs;
+    }
+
+    // Update Reader Stage
+    function updatePage(flipDirection = '') {
+      const frame = document.getElementById('bookFrame');
+      const img = document.getElementById('pageImage');
+      const canvas = document.getElementById('fallbackCanvas');
+      const pageText = document.getElementById('pageText');
+      const pageNumDisplay = document.getElementById('currentPageNum');
+
+      // Add flip animation
+      if (flipDirection === 'next') {
+        frame.classList.remove('page-flip-next', 'page-flip-prev');
+        void frame.offsetWidth;
+        frame.classList.add('page-flip-next');
+      } else if (flipDirection === 'prev') {
+        frame.classList.remove('page-flip-next', 'page-flip-prev');
+        void frame.offsetWidth;
+        frame.classList.add('page-flip-prev');
+      }
+
+      pageNumDisplay.innerText = currentPage;
+      
+      const currentItem = pageTexts[currentPage] || { text: "", sub: "" };
+      pageText.innerHTML = `
+        <span class="block text-amber-200 font-bold text-base md:text-xl font-['Cinzel'] tracking-wide mb-1">
+          ${currentItem.text}
+        </span>
+        <span class="block text-amber-400/80 text-xs md:text-sm font-normal">
+          ${currentItem.sub}
+        </span>
+      `;
+
+      // Set Image Source
+      img.style.display = 'block';
+      canvas.classList.add('hidden');
+      img.src = assets.graphics[currentPage];
+
+      // Handle Image Error -> Render Canvas Graphic Placeholder
+      img.onerror = function() {
+        img.style.display = 'none';
+        drawCanvasPlaceholder(currentPage);
+      };
+
+      // Refresh thumbnails active state
+      renderThumbnails();
+
+      // If narration was playing, restart for new page
+      if (isSpeechPlaying) {
+        playSpeech();
+      }
+    }
+
+    // Canvas Stylized Drawing when local image doesn't exist
+    function drawCanvasPlaceholder(pageIdx) {
+      const canvas = document.getElementById('fallbackCanvas');
+      canvas.classList.remove('hidden');
+      canvas.width = 1024;
+      canvas.height = 768;
+      const ctx = canvas.getContext('2d');
+
+      // Background Gradient
+      const grad = ctx.createRadialGradient(512, 384, 50, 512, 384, 600);
+      grad.addColorStop(0, '#5c2b0c');
+      grad.addColorStop(1, '#170c06');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1024, 768);
+
+      // Tribal Diamond Pattern Background
+      ctx.strokeStyle = 'rgba(217, 119, 6, 0.15)';
+      ctx.lineWidth = 3;
+      for (let x = 0; x < 1024; x += 80) {
+        for (let y = 0; y < 768; y += 80) {
+          ctx.beginPath();
+          ctx.moveTo(x + 40, y);
+          ctx.lineTo(x + 80, y + 40);
+          ctx.lineTo(x + 40, y + 80);
+          ctx.lineTo(x, y + 40);
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+
+      // Title/Illustration Centerpiece
+      ctx.fillStyle = '#fef3c7';
+      ctx.textAlign = 'center';
+
+      if (pageIdx === 0) {
+        // Cover Art
+        ctx.font = 'bold 54px serif';
+        ctx.fillText('mnanak na qalang', 512, 320);
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = '28px serif';
+        ctx.fillText('— 奇妙的部落 泰雅傳奇 —', 512, 400);
+
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(100, 80, 824, 608);
+      } else {
+        // Page Art Placeholder
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 80px serif';
+        ctx.fillText(`第 ${pageIdx} 頁`, 512, 360);
+
+        ctx.fillStyle = '#d97706';
+        ctx.font = '22px sans-serif';
+        ctx.fillText(`[請點擊右上角「載入 assets 資料夾」選擇真實 0.jpg~19.jpg 圖片]`, 512, 440);
+      }
+    }
+
+    // Navigation Logic
+    function nextPage() {
+      if (currentPage < totalPages - 1) {
+        currentPage++;
+        updatePage('next');
+      } else if (isAutoPlay) {
+        toggleAutoPlay(); // Stop auto play at end
+      }
+    }
+
+    function prevPage() {
+      if (currentPage > 0) {
+        currentPage--;
+        updatePage('prev');
+      }
+    }
+
+    function goToPage(index) {
+      if (index >= 0 && index < totalPages && index !== currentPage) {
+        const dir = index > currentPage ? 'next' : 'prev';
+        currentPage = index;
+        updatePage(dir);
+      }
+    }
+
+    // Speech / Narration Logic
+    function toggleReadAloud() {
+      if (isSpeechPlaying) {
+        stopSpeech();
+      } else {
+        playSpeech();
+      }
+    }
+
+    function playSpeech() {
+      stopSpeech(); // Stop existing audio/TTS
+      isSpeechPlaying = true;
+      updateSpeechUI(true);
+
+      const speechAudio = document.getElementById('speechAudio');
+      const speechUrl = assets.speech[currentPage];
+
+      // Attempt to play HTML5 audio file
+      if (speechUrl) {
+        speechAudio.src = speechUrl;
+        speechAudio.play().then(() => {
+          speechAudio.onended = () => {
+            stopSpeech();
+            if (isAutoPlay) nextPage();
+          };
+        }).catch(() => {
+          // Fallback to Browser Web Speech API SpeechSynthesis if local audio file missing
+          playWebSpeechTTS();
+        });
+      } else {
+        playWebSpeechTTS();
+      }
+    }
+
+    function playWebSpeechTTS() {
+      if (!('speechSynthesis' in window)) {
+        stopSpeech();
+        return;
+      }
+      // ONLY read the native Atayal language text (strictly NO page numbers)
+      const currentItem = pageTexts[currentPage];
+      const textToRead = currentItem ? currentItem.text : '';
+
+      if (!textToRead) {
+        stopSpeech();
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(textToRead);
+      utterance.lang = 'zh-TW'; // Fallback voice synthesizer
+      utterance.rate = 0.85;
+
+      utterance.onend = () => {
+        stopSpeech();
+        if (isAutoPlay) nextPage();
+      };
+      utterance.onerror = () => stopSpeech();
+
+      synth.speak(utterance);
+    }
+
+    function stopSpeech() {
+      isSpeechPlaying = false;
+      const speechAudio = document.getElementById('speechAudio');
+      speechAudio.pause();
+      if (synth && synth.speaking) {
+        synth.cancel();
+      }
+      updateSpeechUI(false);
+    }
+
+    function updateSpeechUI(playing) {
+      const btnText = document.getElementById('readText');
+      const icon = document.getElementById('readIcon');
+      const indicator = document.getElementById('speechIndicator');
+
+      if (playing) {
+        btnText.innerText = '停止朗讀';
+        icon.setAttribute('data-lucide', 'square');
+        indicator.classList.remove('hidden');
+      } else {
+        btnText.innerText = '朗讀故事';
+        icon.setAttribute('data-lucide', 'volume-2');
+        indicator.classList.add('hidden');
+      }
+      lucide.createIcons();
+    }
+
+    // Auto Play Controller
+    function toggleAutoPlay() {
+      isAutoPlay = !isAutoPlay;
+      const btnText = document.getElementById('autoPlayText');
+      const icon = document.getElementById('autoPlayIcon');
+
+      if (isAutoPlay) {
+        btnText.innerText = '停止自動';
+        icon.setAttribute('data-lucide', 'pause');
+        playSpeech(); // Start reading current page, auto next page on speech end
+      } else {
+        btnText.innerText = '自動播放';
+        icon.setAttribute('data-lucide', 'play');
+        stopSpeech();
+      }
+      lucide.createIcons();
+    }
+
+    // Background Music (BGM) Logic
+    function toggleBGM() {
+      const bgm = document.getElementById('bgmAudio');
+      const icon = document.getElementById('bgmIcon');
+
+      if (isBGMPlaying) {
+        bgm.pause();
+        stopSynthBGM();
+        isBGMPlaying = false;
+        icon.setAttribute('data-lucide', 'music');
+      } else {
+        if (assets.music) {
+          bgm.src = assets.music;
+          bgm.volume = parseFloat(document.getElementById('bgmVolume').value);
+          bgm.play().then(() => {
+            isBGMPlaying = true;
+          }).catch(() => {
+            // Audio file failed/blocked -> Use Web Audio API Ambient Sound Synth
+            startSynthBGM();
+            isBGMPlaying = true;
+          });
+        } else {
+          startSynthBGM();
+          isBGMPlaying = true;
+        }
+        icon.setAttribute('data-lucide', 'disc');
+      }
+      lucide.createIcons();
+    }
+
+    function changeBGMVolume(val) {
+      const bgm = document.getElementById('bgmAudio');
+      bgm.volume = parseFloat(val);
+    }
+
+    // Web Audio Ambient Synthesizer fallback
+    function startSynthBGM() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      bgmOscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      bgmOscillator.type = 'sine';
+      bgmOscillator.frequency.setValueAtTime(220, audioCtx.currentTime); // Soft A3 tone
+      gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+
+      bgmOscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      bgmOscillator.start();
+    }
+
+    function stopSynthBGM() {
+      if (bgmOscillator) {
+        bgmOscillator.stop();
+        bgmOscillator.disconnect();
+        bgmOscillator = null;
+      }
+    }
+
+    // Fullscreen Mode Handler
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          showStatusAlert('無法啟用全螢幕模式');
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    // Alert Banner Helper
+    function showStatusAlert(msg) {
+      const alert = document.getElementById('statusAlert');
+      const text = document.getElementById('statusMessage');
+      text.innerText = msg;
+      alert.classList.remove('hidden');
+      setTimeout(() => {
+        alert.classList.add('hidden');
+      }, 4000);
+    }
+  </script>
+</body>
+</html>
